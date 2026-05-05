@@ -1,4 +1,5 @@
 {
+  "$comment": "fmt and spdlog are intentionally NOT listed here. They are sourced from conda (alongside PDAL) so all three stay ABI-compatible; mixing a vcpkg fmt with conda's PDAL (which links its own fmt) caused symbol-mismatch failures on Windows. The CMake configure step in .github/workflows/build-{linux,windows}.yml adds the conda prefix to CMAKE_PREFIX_PATH so find_package(fmt) and the spdlog headers are resolved from there.",
   "name": "3d-nonrigid-tricubic-pointcloud-registration",
   "version": "1.0.0",
   "dependencies": [

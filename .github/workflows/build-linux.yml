@@ -30,6 +30,7 @@ jobs:
               -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DPDAL_DIR="/opt/miniconda/lib/cmake/PDAL" \
+              -DCMAKE_PREFIX_PATH="/opt/miniconda" \
               -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
 
             # Build the project
