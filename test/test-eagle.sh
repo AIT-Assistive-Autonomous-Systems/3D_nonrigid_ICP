@@ -17,10 +17,12 @@ nonrigid-icp \
     --voxel_size 0.50 \
     --buffer_voxels 5 \
     --matching_mode id \
+    --error_metric point_to_point \
     --num_iterations 1 \
-    --weights "0.01,0.01,0.01,0.01" \
+    --weights "0.02,0.02,0.02,0.02" \
     --max_euclidean_distance 10.0 \
-    --num_correspondences 10000 \
+    --sigma_mad_factor 0 \
+    --max_correspondences_per_voxel 50 \
     --debug_dir "results/debug" \
     --profiling
 

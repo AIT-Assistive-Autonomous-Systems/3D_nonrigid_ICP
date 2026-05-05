@@ -14,10 +14,10 @@
 
 struct CorrespondencesResults {
   int num{};
-  double mean_point_to_plane_dists_before_optimization{};
-  double std_point_to_plane_dists_before_optimization{};
-  double mean_point_to_plane_dists_after_optimization{};
-  double std_point_to_plane_dists_after_optimization{};
+  double mean_dists_before_optimization{};
+  double std_dists_before_optimization{};
+  double mean_dists_after_optimization{};
+  double std_dists_after_optimization{};
 };
 
 struct IterationResults {
@@ -25,6 +25,14 @@ struct IterationResults {
   OptimizationResults optimization_results{};
   CorrespondencesResults correspondences_results{};
 };
+
+namespace {
+ErrorMetric ParseErrorMetric(const std::string& s) {
+  if (s == "point_to_plane") return ErrorMetric::PointToPlane;
+  if (s == "point_to_point") return ErrorMetric::PointToPoint;
+  throw std::runtime_error("Error metric \"" + s + "\" is not available!");
+}
+}  // namespace
 
 struct Params {
   std::string fixed;
@@ -34,8 +42,10 @@ struct Params {
   std::vector<double> grid_limits;
   uint32_t buffer_voxels;
   std::string matching_mode;
-  uint32_t num_correspondences;
+  ErrorMetric error_metric;
+  uint32_t max_correspondences_per_voxel;
   double max_euclidean_distance;
+  double sigma_mad_factor;
   uint32_t num_iterations;
   std::vector<double> weights;
   std::string debug_dir;
@@ -62,18 +72,21 @@ int main(int argc, char** argv) {
     if (!params.suppress_logging) {
       std::cout << "Create point cloud objects\n";
     }
-    auto X_fix =
-        ImportFileToMatrix(params.fixed, true, params.matching_mode == "id" ? true : false);
-    auto X_mov =
-        ImportFileToMatrix(params.movable, true, params.matching_mode == "id" ? true : false);
+    const bool needs_normals = (params.error_metric == ErrorMetric::PointToPlane);
+    auto X_fix = ImportFileToMatrix(params.fixed, needs_normals,
+                                    params.matching_mode == "id" ? true : false);
+    auto X_mov = ImportFileToMatrix(params.movable, needs_normals,
+                                    params.matching_mode == "id" ? true : false);
 
     auto pc_fix{PtCloud(X_fix(Eigen::all, {X_fix.namedColIndex("x"), X_fix.namedColIndex("y"),
                                            X_fix.namedColIndex("z")}))};
     auto pc_mov{PtCloud(X_mov(Eigen::all, {X_fix.namedColIndex("x"), X_fix.namedColIndex("y"),
                                            X_fix.namedColIndex("z")}))};
 
-    pc_fix.SetNormals(X_fix.namedCol("nx"), X_fix.namedCol("ny"), X_fix.namedCol("nz"));
-    pc_mov.SetNormals(X_mov.namedCol("nx"), X_mov.namedCol("ny"), X_mov.namedCol("nz"));
+    if (needs_normals) {
+      pc_fix.SetNormals(X_fix.namedCol("nx"), X_fix.namedCol("ny"), X_fix.namedCol("nz"));
+      pc_mov.SetNormals(X_mov.namedCol("nx"), X_mov.namedCol("ny"), X_mov.namedCol("nz"));
+    }
     if (params.matching_mode == "id") {
       pc_fix.SetCorrespondenceId(X_fix.namedCol("correspondence_id"));
       pc_mov.SetCorrespondenceId(X_mov.namedCol("correspondence_id"));
@@ -120,7 +133,7 @@ int main(int argc, char** argv) {
       std::cout << "Selection of correspondences in fixed point cloud\n";
     }
     Correspondences correspondences{pc_fix, pc_mov};
-    correspondences.SelectPointsByRandomSampling(params.num_correspondences);
+    correspondences.SelectPointsByVoxelStratifiedSampling(params.max_correspondences_per_voxel);
     auto idx_pc_fix{correspondences.GetSelectedPoints()};
     if (!params.suppress_logging) {
       std::cout << fmt::format("Selected {:d} points in fixed point cloud\n",
@@ -145,7 +158,7 @@ int main(int argc, char** argv) {
         correspondences.MatchPointsByCorrespondenceId();
       }
       correspondences.RejectMaxEuclideanDistanceCriteria(params.max_euclidean_distance);
-      correspondences.RejectStdMadCriteria();
+      correspondences.RejectStdMadCriteria(params.error_metric, params.sigma_mad_factor);
 
       if (debug_mode) {
         char it_string[100];
@@ -155,26 +168,26 @@ int main(int argc, char** argv) {
         correspondences.ExportCorrespondences(debug_file_name);
       }
 
+      const Dists& dists_before = correspondences.dists_t(params.error_metric);
       iteration_results.correspondences_results.num = correspondences.num();
-      iteration_results.correspondences_results.mean_point_to_plane_dists_before_optimization =
-          correspondences.point_to_plane_dists_t().mean;
-      iteration_results.correspondences_results.std_point_to_plane_dists_before_optimization =
-          correspondences.point_to_plane_dists_t().std;
+      iteration_results.correspondences_results.mean_dists_before_optimization = dists_before.mean;
+      iteration_results.correspondences_results.std_dists_before_optimization = dists_before.std;
       if (params.profiling) profiler.Stop("A.04 Matching");
 
       if (params.profiling) profiler.Start("A.05 Optimization");
       Optimization optimization{};
-      iteration_results.optimization_results = Optimization::Solve(correspondences, params.weights);
+      iteration_results.optimization_results =
+          Optimization::Solve(correspondences, params.weights, params.error_metric);
       if (params.profiling) profiler.Stop("A.05 Optimization");
 
       if (iteration_results.optimization_results.success) {
-        iteration_results.correspondences_results.mean_point_to_plane_dists_after_optimization =
-            correspondences.point_to_plane_dists_t().mean;
-        iteration_results.correspondences_results.std_point_to_plane_dists_after_optimization =
-            correspondences.point_to_plane_dists_t().std;
+        const Dists& dists_after = correspondences.dists_t(params.error_metric);
+        iteration_results.correspondences_results.mean_dists_after_optimization = dists_after.mean;
+        iteration_results.correspondences_results.std_dists_after_optimization = dists_after.std;
         ReportIterationResults(iteration_results);
       } else {
-        throw std::runtime_error("Optimization was not successful!");
+        throw std::runtime_error("Optimization was not successful! " +
+                                 iteration_results.optimization_results.error_message);
       }
     }
 
@@ -234,12 +247,24 @@ Params ParseUserInputs(int argc, char** argv) {
     "Matching mode for correspondences. Available modes are \"nn\" (nearest neighbor) and \"id\" "
     "(correspondence_id).",
     cxxopts::value<std::string>()->default_value("nn"))
-    ("n,num_correspondences",
-    "Number of correspondences",
-    cxxopts::value<uint32_t>()->default_value("10000"))
+    ("k,error_metric",
+    "Error metric for optimization. Available values are \"point_to_plane\" (requires normals on "
+    "the fixed point cloud) and \"point_to_point\" (no normals required).",
+    cxxopts::value<std::string>()->default_value("point_to_plane"))
+    ("n,max_correspondences_per_voxel",
+    "Maximum number of correspondences sampled per non-empty translation-grid voxel. Voxels "
+    "with fewer fixed-cloud points than this value contribute all their points; otherwise this "
+    "many points are randomly drawn from the voxel. Voxel-stratified sampling ensures every "
+    "voxel containing fixed-cloud data is constrained by at least one correspondence.",
+    cxxopts::value<uint32_t>()->default_value("20"))
     ("e,max_euclidean_distance",
     "Maximum euclidean distance between corresponding points",
     cxxopts::value<double>()->default_value("1"))
+    ("r,sigma_mad_factor",
+    "Factor for MAD-based rejection of correspondences. Correspondences whose distance "
+    "deviates from the median by more than this factor times the MAD-derived standard "
+    "deviation (1.4826*MAD) are rejected. Set to 0 to deactivate the rejection.",
+    cxxopts::value<double>()->default_value("5"))
     ("i,num_iterations",
     "Number of iterations",
     cxxopts::value<uint32_t>()->default_value("5"))
@@ -281,10 +306,22 @@ Params ParseUserInputs(int argc, char** argv) {
   params.grid_limits = result["grid_limits"].as<std::vector<double>>();
   params.buffer_voxels = result["buffer_voxels"].as<uint32_t>();
   params.matching_mode = result["matching_mode"].as<std::string>();
-  params.num_correspondences = result["num_correspondences"].as<uint32_t>();
+  params.error_metric = ParseErrorMetric(result["error_metric"].as<std::string>());
+  params.max_correspondences_per_voxel = result["max_correspondences_per_voxel"].as<uint32_t>();
+  if (params.max_correspondences_per_voxel == 0) {
+    throw std::runtime_error("max_correspondences_per_voxel must be > 0!");
+  }
   params.max_euclidean_distance = result["max_euclidean_distance"].as<double>();
+  params.sigma_mad_factor = result["sigma_mad_factor"].as<double>();
+  if (params.sigma_mad_factor < 0.0) {
+    throw std::runtime_error("sigma_mad_factor must be >= 0!");
+  }
   params.num_iterations = result["num_iterations"].as<uint32_t>();
   params.weights = result["weights"].as<std::vector<double>>();
+  if (params.weights.size() != 4) {
+    throw std::runtime_error(
+        "weights must have exactly 4 values (f,fx/fy/fz,fxy/fxz/fyz,fxyz)!");
+  }
   params.debug_dir = result["debug_dir"].as<std::string>();
   params.suppress_logging = result["suppress_logging"].as<bool>();
   params.profiling = result["profiling"].as<bool>();
@@ -321,16 +358,15 @@ Params ParseUserInputs(int argc, char** argv) {
 void ReportIterationResults(const IterationResults& iteration_results) {
   if (iteration_results.it == 1) {
     spdlog::info("{:>4} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}", "it", "num_corr",
-                 "num_obs", "num_unkn", "mean(dp)", "mean(dp)", "std(dp)", "std(dp)");
+                 "num_obs", "num_unkn", "mean(dist)", "mean(dist)", "std(dist)", "std(dist)");
     spdlog::info("{:37} {:>10} {:>10} {:>10} {:>10}", "", "before", "after", "before", "after");
   }
-  spdlog::info(
-      "{:4d} {:10d} {:10d} {:10d} {:10.3f} {:10.3f} {:10.3f} {:10.3f}", iteration_results.it,
-      iteration_results.correspondences_results.num,
-      iteration_results.optimization_results.num_observations,
-      iteration_results.optimization_results.num_unknowns,
-      iteration_results.correspondences_results.mean_point_to_plane_dists_before_optimization,
-      iteration_results.correspondences_results.mean_point_to_plane_dists_after_optimization,
-      iteration_results.correspondences_results.std_point_to_plane_dists_before_optimization,
-      iteration_results.correspondences_results.std_point_to_plane_dists_after_optimization);
+  spdlog::info("{:4d} {:10d} {:10d} {:10d} {:10.3f} {:10.3f} {:10.3f} {:10.3f}",
+               iteration_results.it, iteration_results.correspondences_results.num,
+               iteration_results.optimization_results.num_observations,
+               iteration_results.optimization_results.num_unknowns,
+               iteration_results.correspondences_results.mean_dists_before_optimization,
+               iteration_results.correspondences_results.mean_dists_after_optimization,
+               iteration_results.correspondences_results.std_dists_before_optimization,
+               iteration_results.correspondences_results.std_dists_after_optimization);
 }

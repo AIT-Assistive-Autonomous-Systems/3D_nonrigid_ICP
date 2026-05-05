@@ -33,6 +33,7 @@ class PtCloud {
   const Eigen::VectorXd& nx();
   const Eigen::VectorXd& ny();
   const Eigen::VectorXd& nz();
+  bool has_normals() const;
   const Eigen::VectorXd& correspondence_id();
   TranslationGrid& x_translation_grid();
   TranslationGrid& y_translation_grid();
@@ -46,6 +47,7 @@ class PtCloud {
   Eigen::VectorXd nx_;
   Eigen::VectorXd ny_;
   Eigen::VectorXd nz_;
+  bool has_normals_{false};
 
   // Correspondence id
   Eigen::VectorXd correspondence_id_;

@@ -70,11 +70,31 @@ Usage:
   -a, --matching_mode arg       Matching mode for correspondences.
                                 Available modes are "nn" (nearest neighbor)
                                 and "id" (correspondence_id). (default: nn)
-  -n, --num_correspondences arg
-                                Number of correspondences (default: 10000)
+  -k, --error_metric arg        Error metric for optimization. Available
+                                values are "point_to_plane" (requires
+                                normals on the fixed point cloud) and
+                                "point_to_point" (no normals required).
+                                (default: point_to_plane)
+  -n, --max_correspondences_per_voxel arg
+                                Maximum number of correspondences sampled
+                                per non-empty translation-grid voxel.
+                                Voxels with fewer fixed-cloud points than
+                                this value contribute all their points;
+                                otherwise this many points are randomly
+                                drawn from the voxel. Voxel-stratified
+                                sampling ensures every voxel containing
+                                fixed-cloud data is constrained by at least
+                                one correspondence. (default: 20)
   -e, --max_euclidean_distance arg
                                 Maximum euclidean distance between
                                 corresponding points (default: 1)
+  -r, --sigma_mad_factor arg    Factor for MAD-based rejection of
+                                correspondences. Correspondences whose
+                                distance deviates from the median by more
+                                than this factor times the MAD-derived
+                                standard deviation (1.4826*MAD) are
+                                rejected. Set to 0 to deactivate the
+                                rejection. (default: 5)
   -i, --num_iterations arg      Number of iterations (default: 5)
   -w, --weights arg             Weights of zero observations as list for
                                 "f,fx/fy/fz,fxy/fxz/fyz,fxyz" (default:

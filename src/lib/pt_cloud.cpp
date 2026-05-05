@@ -9,6 +9,7 @@ void PtCloud::SetNormals(Eigen::VectorXd nx, Eigen::VectorXd ny, Eigen::VectorXd
   nx_ = nx;
   ny_ = ny;
   nz_ = nz;
+  has_normals_ = true;
 }
 
 void PtCloud::SetCorrespondenceId(Eigen::VectorXd correspondence_id) {
@@ -272,6 +273,7 @@ const Eigen::MatrixXd& PtCloud::Xt() { return Xt_; }
 const Eigen::VectorXd& PtCloud::nx() { return nx_; }
 const Eigen::VectorXd& PtCloud::ny() { return ny_; }
 const Eigen::VectorXd& PtCloud::nz() { return nz_; }
+bool PtCloud::has_normals() const { return has_normals_; }
 const Eigen::VectorXd& PtCloud::correspondence_id() { return correspondence_id_; }
 
 TranslationGrid& PtCloud::x_translation_grid() { return x_translation_grid_; }

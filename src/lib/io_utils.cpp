@@ -94,7 +94,8 @@ NamedColumnMatrix<Eigen::MatrixXd> ExtractMatrix(const pdal::PointViewPtr view,
   NamedColumnMatrix<Eigen::MatrixXd> x(Eigen::MatrixXd(view->size(), matrix_cols), col_names);
 
   // Get named column indices once
-  Eigen::Index x_col, y_col, z_col, nx_col = -1, ny_col = -1, nz_col = -1, correspondence_id_col = -1;
+  Eigen::Index x_col, y_col, z_col, nx_col = -1, ny_col = -1, nz_col = -1,
+                                    correspondence_id_col = -1;
   x_col = x.namedColIndex("x");
   y_col = x.namedColIndex("y");
   z_col = x.namedColIndex("z");

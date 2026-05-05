@@ -6,12 +6,18 @@
 
 #include "pt_cloud.hpp"
 
+enum class ErrorMetric {
+  PointToPlane,
+  PointToPoint,
+};
+
 struct Dists {
   Eigen::VectorXd dists{};
   double mean{NAN};
   double median{NAN};
   double std{NAN};
   double std_mad{NAN};
+  void ComputeStats();
 };
 
 struct CorrespondencesPointsWithAttributes {
@@ -27,11 +33,11 @@ struct CorrespondencesPointsWithAttributes {
 class Correspondences {
  public:
   Correspondences(PtCloud& pc_fix, PtCloud& pc_mov);
-  void SelectPointsByRandomSampling(const uint32_t& num_correspondences);
+  void SelectPointsByVoxelStratifiedSampling(const uint32_t& max_correspondences_per_voxel);
   void MatchPointsByNearestNeighbor();
   void MatchPointsByCorrespondenceId();
   void RejectMaxEuclideanDistanceCriteria(const double& max_euclidean_distance);
-  void RejectStdMadCriteria();
+  void RejectStdMadCriteria(ErrorMetric error_metric, double sigma_mad_factor);
   CorrespondencesPointsWithAttributes GetCorrespondences();
   void ComputeDists();
   void SetSelectedPoints(std::vector<int> idx_pc_fix);
@@ -45,6 +51,7 @@ class Correspondences {
   const Dists& point_to_plane_dists_t();
   const Dists& euclidean_dists();
   const Dists& euclidean_dists_t();
+  const Dists& dists_t(ErrorMetric error_metric);
   std::vector<int> GetSelectedPoints();
 
  private:
@@ -66,8 +73,6 @@ Eigen::MatrixXi KnnSearch(const Eigen::MatrixXd& X, const Eigen::MatrixXd& X_que
 
 template <typename T>
 std::vector<T> KeepSubsetOfVector(const std::vector<T>& old_vector, const std::vector<bool>& keep);
-
-std::vector<int> RandInt(const int& min_val, const int& max_val, const uint32_t& n);
 
 double Median(const Eigen::VectorXd& v);
 
