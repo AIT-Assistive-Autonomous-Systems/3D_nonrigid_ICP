@@ -34,7 +34,7 @@ jobs:
         with:
           manifest-dir: ${{ env.SHORT_WS }}
           triplet: x64-windows
-          cache-key: windows-2022-eigen3-spdlog-nanoflann-cxxopts
+          cache-key: windows-2022-eigen3-nanoflann-cxxopts
           token: ${{ github.token }}
 
       - name: Set up Miniconda (for PDAL)
@@ -51,7 +51,7 @@ jobs:
         run: |
           echo "Conda info before install:"
           conda info
-          conda install -y pdal
+          conda install -y pdal fmt spdlog
           echo "PDAL version:"
           pdal --version || true
           echo "Listing PDAL related libs:"
