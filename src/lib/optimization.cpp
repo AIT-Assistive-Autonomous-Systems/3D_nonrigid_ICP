@@ -1,6 +1,6 @@
 #include "optimization.hpp"
 
-#include <fmt/format.h>
+#include <format>
 
 namespace {
 const char* ComputationInfoToString(Eigen::ComputationInfo info) {
@@ -112,7 +112,7 @@ OptimizationResults Optimization::Solve(Correspondences& correspondences,
   solver.compute(J.transpose() * P * J);
   if (solver.info() != Eigen::Success) {
     optimization_results.success = false;
-    optimization_results.error_message = fmt::format(
+    optimization_results.error_message = std::format(
         "BiCGSTAB::compute failed with status \"{}\" (num_observations={}, num_unknowns={}).",
         ComputationInfoToString(solver.info()), num_observations, num_unknowns);
     return optimization_results;
@@ -120,7 +120,7 @@ OptimizationResults Optimization::Solve(Correspondences& correspondences,
   xhat = solver.solve(J.transpose() * P * l);
   if (solver.info() != Eigen::Success) {
     optimization_results.success = false;
-    optimization_results.error_message = fmt::format(
+    optimization_results.error_message = std::format(
         "BiCGSTAB::solve failed with status \"{}\" after {} iterations (error={:.3e}, "
         "tolerance={:.3e}, max_iterations={}, num_observations={}, num_unknowns={}).",
         ComputationInfoToString(solver.info()), solver.iterations(), solver.error(),

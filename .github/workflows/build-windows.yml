@@ -51,7 +51,7 @@ jobs:
         run: |
           echo "Conda info before install:"
           conda info
-          conda install -y pdal fmt spdlog
+          conda install -y pdal
           echo "PDAL version:"
           pdal --version || true
           echo "Listing PDAL related libs:"

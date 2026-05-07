@@ -1,16 +1,16 @@
-#include <fmt/format.h>
-#include <spdlog/spdlog.h>
-
 #include <cxxopts.hpp>
 #include <iostream>
 
 #include "src/lib/correspondences.hpp"
 #include "src/lib/io_utils.hpp"
+#include "src/lib/logger.hpp"
 #include "src/lib/named_column_matrix.hpp"
 #include "src/lib/optimization.hpp"
 #include "src/lib/profiler.hpp"
 #include "src/lib/pt_cloud.hpp"
 #include "src/lib/timer.hpp"
+
+using logger::Log;
 
 struct CorrespondencesResults {
   int num{};
@@ -64,14 +64,10 @@ int main(int argc, char** argv) {
     auto& profiler = Profiler::Instance();
 
     Timer timer;
-    if (!params.suppress_logging) {
-      std::cout << "Start of \"nonrigid-icp\"\n";
-    }
+    Log("Start of \"nonrigid-icp\"");
 
     if (params.profiling) profiler.Start("A.01 Create point cloud objects");
-    if (!params.suppress_logging) {
-      std::cout << "Create point cloud objects\n";
-    }
+    Log("Create point cloud objects");
     const bool needs_normals = (params.error_metric == ErrorMetric::PointToPlane);
     auto X_fix = ImportFileToMatrix(params.fixed, needs_normals,
                                     params.matching_mode == "id" ? true : false);
@@ -91,61 +87,44 @@ int main(int argc, char** argv) {
       pc_fix.SetCorrespondenceId(X_fix.namedCol("correspondence_id"));
       pc_mov.SetCorrespondenceId(X_mov.namedCol("correspondence_id"));
     }
-    if (!params.suppress_logging) {
-      std::cout << fmt::format("  Fixed point cloud has {:d} points\n", pc_fix.NumPts());
-      std::cout << fmt::format("  Movable point cloud has {:d} points\n", pc_mov.NumPts());
-    }
+    Log("  Fixed point cloud has {:d} points", pc_fix.NumPts());
+    Log("  Movable point cloud has {:d} points", pc_mov.NumPts());
     if (params.profiling) profiler.Stop("A.01 Create point cloud objects");
 
     if (params.profiling) profiler.Start("A.02 Initialization of translation grids");
-    if (!params.suppress_logging) {
-      std::cout << "Initialize x/y/z translation grids for movable point cloud\n";
-    }
+    Log("Initialize x/y/z translation grids for movable point cloud");
     pc_mov.InitializeTranslationGrids(params.voxel_size, params.buffer_voxels, params.grid_limits);
     pc_mov.InitMatricesForUpdateXt();
-    if (!params.suppress_logging) {
-      std::cout << "Each translation grid (including buffer voxels) has the properties:\n";
-      std::cout << fmt::format(
-          "  x_min/x_max/x_num_voxels = {:.3f}/{:.3f}/{:d}\n",
-          pc_mov.x_translation_grid().grid_origin()(0),
-          pc_mov.x_translation_grid().grid_origin()(0) +
-              pc_mov.x_translation_grid().voxel_size() * pc_mov.x_translation_grid().x_num_voxels(),
-          pc_mov.x_translation_grid().x_num_voxels());
-      std::cout << fmt::format(
-          "  y_min/y_max/y_num_voxels = {:.3f}/{:.3f}/{:d}\n",
-          pc_mov.x_translation_grid().grid_origin()(1),
-          pc_mov.x_translation_grid().grid_origin()(1) +
-              pc_mov.x_translation_grid().voxel_size() * pc_mov.x_translation_grid().y_num_voxels(),
-          pc_mov.x_translation_grid().y_num_voxels());
-      std::cout << fmt::format(
-          "  z_min/z_max/z_num_voxels = {:.3f}/{:.3f}/{:d}\n",
-          pc_mov.x_translation_grid().grid_origin()(2),
-          pc_mov.x_translation_grid().grid_origin()(2) +
-              pc_mov.x_translation_grid().voxel_size() * pc_mov.x_translation_grid().z_num_voxels(),
-          pc_mov.x_translation_grid().z_num_voxels());
-      std::cout << fmt::format("  num_grid_vals = {:d}\n",
-                               pc_mov.x_translation_grid().num_grid_vals());
-    }
+    Log("Each translation grid (including buffer voxels) has the properties:");
+    Log("  x_min/x_max/x_num_voxels = {:.3f}/{:.3f}/{:d}",
+        pc_mov.x_translation_grid().grid_origin()(0),
+        pc_mov.x_translation_grid().grid_origin()(0) +
+            pc_mov.x_translation_grid().voxel_size() * pc_mov.x_translation_grid().x_num_voxels(),
+        pc_mov.x_translation_grid().x_num_voxels());
+    Log("  y_min/y_max/y_num_voxels = {:.3f}/{:.3f}/{:d}",
+        pc_mov.x_translation_grid().grid_origin()(1),
+        pc_mov.x_translation_grid().grid_origin()(1) +
+            pc_mov.x_translation_grid().voxel_size() * pc_mov.x_translation_grid().y_num_voxels(),
+        pc_mov.x_translation_grid().y_num_voxels());
+    Log("  z_min/z_max/z_num_voxels = {:.3f}/{:.3f}/{:d}",
+        pc_mov.x_translation_grid().grid_origin()(2),
+        pc_mov.x_translation_grid().grid_origin()(2) +
+            pc_mov.x_translation_grid().voxel_size() * pc_mov.x_translation_grid().z_num_voxels(),
+        pc_mov.x_translation_grid().z_num_voxels());
+    Log("  num_grid_vals = {:d}", pc_mov.x_translation_grid().num_grid_vals());
     if (params.profiling) profiler.Stop("A.02 Initialization of translation grids");
 
     if (params.profiling) profiler.Start("A.03 Selection of correspondences");
-    if (!params.suppress_logging) {
-      std::cout << "Selection of correspondences in fixed point cloud\n";
-    }
+    Log("Selection of correspondences in fixed point cloud");
     Correspondences correspondences{pc_fix, pc_mov};
     correspondences.SelectPointsByVoxelStratifiedSampling(params.max_correspondences_per_voxel);
     auto idx_pc_fix{correspondences.GetSelectedPoints()};
-    if (!params.suppress_logging) {
-      std::cout << fmt::format("Selected {:d} points in fixed point cloud\n",
-                               correspondences.num());
-    }
+    Log("Selected {:d} points in fixed point cloud", correspondences.num());
     if (params.profiling) profiler.Stop("A.03 Selection of correspondences");
 
     auto debug_mode = (params.debug_dir != "");
 
-    if (!params.suppress_logging) {
-      std::cout << "Start iterative point cloud matching\n";
-    }
+    Log("Start iterative point cloud matching");
     IterationResults iteration_results{};
     for (uint32_t it = 0; it < params.num_iterations; it++) {
       iteration_results.it = it + 1;
@@ -192,24 +171,19 @@ int main(int argc, char** argv) {
     }
 
     if (params.profiling) profiler.Start("A.06 Export of translation grids");
-    if (!params.suppress_logging) {
-      std::cout << fmt::format("Export of estimated translation grids to \"{}\"\n",
-                               params.transform);
-    }
+    Log("Export of estimated translation grids to \"{}\"", params.transform);
     pc_mov.ExportTranslationGrids(params.transform);
     if (params.profiling) profiler.Stop("A.06 Export of translation grids");
 
-    if (!params.suppress_logging) {
-      std::cout << fmt::format("Finished \"nonrigid-icp\" in {}!\n", timer);
-    }
+    Log("Finished \"nonrigid-icp\" in {}!", timer);
 
-    if (params.profiling && !params.suppress_logging) profiler.PrintSummary();
+    if (params.profiling) profiler.PrintSummary();
 
   } catch (const std::exception& e) {
-    std::cerr << "Caught exception: " << e.what() << std::endl;
+    Log("Caught exception: {}", e.what());
     return 1;
   } catch (...) {
-    std::cerr << "Caught unknown exception." << std::endl;
+    Log("Caught unknown exception.");
     return 1;
   }
 
@@ -326,12 +300,12 @@ Params ParseUserInputs(int argc, char** argv) {
   params.suppress_logging = result["suppress_logging"].as<bool>();
   params.profiling = result["profiling"].as<bool>();
 
+  logger::SetEnabled(!params.suppress_logging);
+
   if (params.matching_mode == "id") {
     params.num_iterations = 1;
-    if (!params.suppress_logging) {
-      std::cout << fmt::format("Set num_iterations to {:d} as matching mode \"{}\" was selected.\n",
-                               params.num_iterations, params.matching_mode.c_str());
-    }
+    Log("Set num_iterations to {:d} as matching mode \"{}\" was selected.", params.num_iterations,
+        params.matching_mode);
   }
 
   if (params.matching_mode != "nn" && params.matching_mode != "id") {
@@ -357,16 +331,16 @@ Params ParseUserInputs(int argc, char** argv) {
 
 void ReportIterationResults(const IterationResults& iteration_results) {
   if (iteration_results.it == 1) {
-    spdlog::info("{:>4} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}", "it", "num_corr",
-                 "num_obs", "num_unkn", "mean(dist)", "mean(dist)", "std(dist)", "std(dist)");
-    spdlog::info("{:37} {:>10} {:>10} {:>10} {:>10}", "", "before", "after", "before", "after");
+    Log("{:>4} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}", "it", "num_corr", "num_obs",
+        "num_unkn", "mean(dist)", "mean(dist)", "std(dist)", "std(dist)");
+    Log("{:37} {:>10} {:>10} {:>10} {:>10}", "", "before", "after", "before", "after");
   }
-  spdlog::info("{:4d} {:10d} {:10d} {:10d} {:10.3f} {:10.3f} {:10.3f} {:10.3f}",
-               iteration_results.it, iteration_results.correspondences_results.num,
-               iteration_results.optimization_results.num_observations,
-               iteration_results.optimization_results.num_unknowns,
-               iteration_results.correspondences_results.mean_dists_before_optimization,
-               iteration_results.correspondences_results.mean_dists_after_optimization,
-               iteration_results.correspondences_results.std_dists_before_optimization,
-               iteration_results.correspondences_results.std_dists_after_optimization);
+  Log("{:4d} {:10d} {:10d} {:10d} {:10.3f} {:10.3f} {:10.3f} {:10.3f}", iteration_results.it,
+      iteration_results.correspondences_results.num,
+      iteration_results.optimization_results.num_observations,
+      iteration_results.optimization_results.num_unknowns,
+      iteration_results.correspondences_results.mean_dists_before_optimization,
+      iteration_results.correspondences_results.mean_dists_after_optimization,
+      iteration_results.correspondences_results.std_dists_before_optimization,
+      iteration_results.correspondences_results.std_dists_after_optimization);
 }

@@ -1,7 +1,11 @@
 FROM mcr.microsoft.com/devcontainers/cpp:1-ubuntu-22.04
 
-# Install system packages via apt
+# Install system packages via apt. gcc-13 is sourced from the ubuntu-toolchain-r/test
+# PPA because Ubuntu 22.04's default gcc-11 lacks the C++20 <format> header.
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends software-properties-common \
+    && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
+    && apt-get update \
     && apt-get -y install --no-install-recommends \
     libtool \
     autoconf \
@@ -12,7 +16,15 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     bison \
     flex \
     wget \
-    curl
+    curl \
+    gcc-13 \
+    g++-13
+
+# Make gcc-13/g++-13 the default so any tooling that calls bare `gcc`/`g++`
+# (e.g. VS Code's CMake Tools) picks them up without needing CC/CXX env vars.
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 130 \
+    --slave /usr/bin/g++ g++ /usr/bin/g++-13 \
+    --slave /usr/bin/gcov gcov /usr/bin/gcov-13
 
 # Install miniconda for PDAL
 # Note: Installing PDAL with vcpkg is possible, but it builds from source and is very slow.

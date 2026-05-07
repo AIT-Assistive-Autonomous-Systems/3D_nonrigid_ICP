@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -12,6 +11,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "src/lib/logger.hpp"
 
 class Profiler {
  public:
@@ -48,12 +49,13 @@ class Profiler {
     }
     std::sort(sections.begin(), sections.end());
 
-    std::printf("%s\n", std::string(125, '-').c_str());
-    std::printf("%-60s | %10s | %10s | %10s | %10s | %10s\n", "Timings per section", "Count", "Min",
-                "Max", "Mean", "StdDev");
-    std::printf("%-60s | %10s | %10s | %10s | %10s | %10s\n", "", "[#]", "[ms]", "[ms]", "[ms]",
-                "[ms]");
-    std::printf("%s\n", std::string(125, '-').c_str());
+    const std::string separator(125, '-');
+    logger::Log("{}", separator);
+    logger::Log("{:<60} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10}", "Timings per section",
+                "Count", "Min", "Max", "Mean", "StdDev");
+    logger::Log("{:<60} | {:>10} | {:>10} | {:>10} | {:>10} | {:>10}", "", "[#]", "[ms]", "[ms]",
+                "[ms]", "[ms]");
+    logger::Log("{}", separator);
 
     for (const auto& section : sections) {
       const auto& times = timing_data_.at(section);
@@ -76,10 +78,10 @@ class Profiler {
           durations.size()};
       double stddev{std::sqrt(variance)};
 
-      std::printf("%-60s | %10zu | %10.1f | %10.1f | %10.1f | %10.1f\n", section.c_str(),
+      logger::Log("{:<60} | {:>10} | {:>10.1f} | {:>10.1f} | {:>10.1f} | {:>10.1f}", section,
                   durations.size(), min_time, max_time, mean, stddev);
     }
-    std::printf("%s\n", std::string(125, '-').c_str());
+    logger::Log("{}", separator);
   }
 
   void WriteCSV(const std::filesystem::path& filepath) const {

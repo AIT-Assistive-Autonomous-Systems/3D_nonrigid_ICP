@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 project(tricubic_interpolation)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Avoid Windows headers defining min/max macros that conflict with std::min/std::max
 if (WIN32)
@@ -20,16 +22,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     )
 endif()
 
-# MSVC: compile as UTF-8. fmt 12 requires this (static_assert in fmt/base.h).
-if(MSVC)
-    add_compile_options(/utf-8)
-endif()
-
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(nanoflann)
 find_package(PDAL 2.3.0 REQUIRED)
 find_package(cxxopts 3.0.0 REQUIRED)
-find_package(fmt REQUIRED)
 
 # GoogleTest
 include(FetchContent)
@@ -46,7 +42,6 @@ add_definitions(${PDAL_DEFINITIONS})
 
 set(LIB_EIGEN Eigen3::Eigen)
 set(LIB_NANOFLANN nanoflann::nanoflann)
-set(LIB_FMT fmt::fmt)
 set(LIB_CXXOPTS cxxopts::cxxopts)
 
 set(BIN_DIR "${CMAKE_CURRENT_LIST_DIR}/bin") # binaries will be copied to this directory
@@ -74,13 +69,13 @@ set_target_properties(libnonrigid_icp PROPERTIES DEBUG_POSTFIX _d)
 
 # nonrigid-icp executable
 add_executable(nonrigid-icp src/prog/nonrigid_icp.cpp)
-target_link_libraries(nonrigid-icp libnonrigid_icp ${LIB_CXXOPTS} ${LIB_FMT})
+target_link_libraries(nonrigid-icp libnonrigid_icp ${LIB_CXXOPTS})
 target_include_directories(nonrigid-icp PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 set_target_properties(nonrigid-icp PROPERTIES DEBUG_POSTFIX _d)
 
 # nonrigid-icp-transform executable
 add_executable(nonrigid-icp-transform src/prog/nonrigid_icp_transform.cpp)
-target_link_libraries(nonrigid-icp-transform libnonrigid_icp ${LIB_CXXOPTS} ${LIB_FMT})
+target_link_libraries(nonrigid-icp-transform libnonrigid_icp ${LIB_CXXOPTS})
 target_include_directories(nonrigid-icp-transform PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 set_target_properties(nonrigid-icp-transform PROPERTIES DEBUG_POSTFIX _d)
 
