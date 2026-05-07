@@ -20,6 +20,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     )
 endif()
 
+# MSVC: compile as UTF-8. fmt 12 requires this (static_assert in fmt/base.h).
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(nanoflann)
 find_package(PDAL 2.3.0 REQUIRED)
