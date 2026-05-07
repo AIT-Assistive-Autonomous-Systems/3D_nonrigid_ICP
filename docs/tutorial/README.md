@@ -15,18 +15,20 @@ You will need:
 
 It can clearly be seen that these two point clouds can not be aligned using a simple 6 degrees-of-freedom (3 translations + 3 rotations) rigid-body transformation.
 
-## Normal Vectors Requirement
+## Error Metric and Normal Vectors
 
-The non-rigid ICP algorithm uses the point-to-plane error metric. Thus, it requires normal vectors in both input point clouds:
+By default, the non-rigid ICP uses the **point-to-plane** error metric, which requires normal vectors on the fixed point cloud:
 
 - For PLY files: normals must be stored as vertex properties `normalx`, `normaly`, `normalz` or `nx`, `ny`, `nz`.
-- For LAS/LAZ files: normals must be stored as extra dimensions `NormalX`, `NormalY`, `NormalZ`
+- For LAS/LAZ files: normals must be stored as extra dimensions `NormalX`, `NormalY`, `NormalZ`.
 
 ![image2.png](image2.png)
 
 You can compute normals using tools like [CloudCompare](https://www.danielgm.net/cc/), [MeshLab](https://www.meshlab.net/), or [PDAL](https://pdal.io/).
 
 See [this PDAL pipeline example](../../test/test-mls-rail/pdal-pipeline.json) for filtering point clouds and computing normals.
+
+> **No normals available?** Pass `--error_metric point_to_point` to use the point-to-point error metric instead, which does not require normals (introduced in v1.2.0). Point-to-plane typically converges faster when normals are available.
 
 ## Computing the Non-Rigid Transformation
 

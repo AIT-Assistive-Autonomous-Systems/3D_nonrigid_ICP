@@ -220,18 +220,41 @@ jobs:
           generate_release_notes: true
           name: "3D Non-Rigid ICP ${{ github.ref_name }}"
           body: |
-            ## Downloads
+            # Windows
+
+            ### Downloads
             - `nonrigid-icp-windows-x64.zip` - Windows executables with all dependencies
 
-            ## Usage
+            ### Usage
             Extract the ZIP file and run:
             ```cmd
             nonrigid-icp.exe --help
             nonrigid-icp-transform.exe --help
             ```
 
-            ## System Requirements
+            ### System Requirements
             - Windows 10/11 (x64)
             - Visual C++ Redistributable 2022 (usually already installed)
+
+            # Linux
+
+            ### Downloads
+            - `nonrigid-icp-x86_64.AppImage` - Main registration tool
+            - `nonrigid-icp-transform-x86_64.AppImage` - Transform application tool
+
+            ### Usage
+            ```bash
+            chmod +x *.AppImage
+            ./nonrigid-icp-x86_64.AppImage --help
+            ./nonrigid-icp-transform-x86_64.AppImage --help
+            ```
+
+            ### System Requirements
+            - Linux x86_64
+            - Compatible with Ubuntu 22.04 and newer
+
+            ---
+
+            See [CHANGELOG.md](https://github.com/AIT-Assistive-Autonomous-Systems/3D_nonrigid_ICP/blob/${{ github.ref_name }}/CHANGELOG.md) for the full list of changes.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
